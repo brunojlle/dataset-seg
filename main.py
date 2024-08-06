@@ -4,6 +4,7 @@ import cv2
 from tkinter import Tk, Label, Button, Frame
 from PIL import Image, ImageTk
 import shutil
+import numpy as np
 
 class ImageViewer:
     def __init__(self, master, images, folder_path):
@@ -21,30 +22,39 @@ class ImageViewer:
         self.show_image()
 
         self.button_frame = Frame(master)
-        self.button_frame.pack()
+        self.button_frame.pack(pady=10)
 
-        self.prev_button = Button(self.button_frame, text="ANTERIOR", command=self.prev_image)
-        self.prev_button.pack(side="left")
+        button_options = {'side': 'left', 'padx': 5, 'pady': 5}
+        button_size = {'width': 10, 'height': 2}
 
-        self.next_button = Button(self.button_frame, text="PRÓXIMO", command=self.next_image)
-        self.next_button.pack(side="left")
+        self.prev_button = Button(self.button_frame, text="ANTERIOR", command=self.prev_image, **button_size)
+        self.prev_button.pack(**button_options)
 
-        self.bad_button = Button(self.button_frame, text="RUIM", command=self.move_to_bad_data)
-        self.bad_button.pack(side="left")
+        self.next_button = Button(self.button_frame, text="PRÓXIMO", command=self.next_image, **button_size)
+        self.next_button.pack(**button_options)
 
-        self.good_button = Button(self.button_frame, text="BOM", command=self.move_to_good_data)
-        self.good_button.pack(side="left")
+        self.bad_button = Button(self.button_frame, text="RUIM", command=self.move_to_bad_data, **button_size)
+        self.bad_button.pack(**button_options)
 
-        self.quit_button = Button(self.button_frame, text="SAIR", command=master.quit)
-        self.quit_button.pack(side="left")
+        self.good_button = Button(self.button_frame, text="BOM", command=self.move_to_good_data, **button_size)
+        self.good_button.pack(**button_options)
+
+        self.quit_button = Button(self.button_frame, text="SAIR", command=master.quit, **button_size)
+        self.quit_button.pack(**button_options)
+
+        master.bind('<Left>', lambda event: self.prev_image())
+        master.bind('<Right>', lambda event: self.next_image())
+        master.bind('<Up>', lambda event: self.move_to_good_data())
+        master.bind('<Down>', lambda event: self.move_to_bad_data())
 
     def create_overlay(self, rgb_image, mask_image):
         mask_colored = cv2.cvtColor(mask_image, cv2.COLOR_GRAY2BGR)
-        overlay = cv2.addWeighted(rgb_image, 0.7, mask_colored, 0.3, 0)
+        overlay = cv2.addWeighted(rgb_image, 0.8, mask_colored, 0.2, 0)
         return overlay
 
     def show_image(self):
-        combined_image = cv2.hconcat([self.rgb_image, self.overlay_image])
+        spacer = np.ones((self.rgb_image.shape[0], 20, 3), dtype=np.uint8) * 255
+        combined_image = cv2.hconcat([self.rgb_image, spacer, self.overlay_image])
         combined_image = cv2.cvtColor(combined_image, cv2.COLOR_BGR2RGB)
         combined_image = Image.fromarray(combined_image)
         imgtk = ImageTk.PhotoImage(image=combined_image)
