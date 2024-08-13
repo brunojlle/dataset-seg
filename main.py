@@ -21,26 +21,32 @@ class ImageViewer:
 
         self.show_image()
 
-        self.button_frame = Frame(master)
-        self.button_frame.pack(pady=10)
+        self.nav_frame = Frame(master)
+        self.nav_frame.pack(pady=5)
 
         button_options = {'side': 'left', 'padx': 5, 'pady': 5}
         button_size = {'width': 10, 'height': 2}
 
-        self.prev_button = Button(self.button_frame, text="ANTERIOR", command=self.prev_image, **button_size)
+        self.prev_button = Button(self.nav_frame, text="ANTERIOR", command=self.prev_image, bg="lightblue", fg="black", **button_size)
         self.prev_button.pack(**button_options)
 
-        self.next_button = Button(self.button_frame, text="PRÓXIMO", command=self.next_image, **button_size)
+        self.next_button = Button(self.nav_frame, text="PRÓXIMO", command=self.next_image, bg="lightblue", fg="black", **button_size)
         self.next_button.pack(**button_options)
 
-        self.bad_button = Button(self.button_frame, text="RUIM", command=self.move_to_bad_data, **button_size)
-        self.bad_button.pack(**button_options)
+        self.class_frame = Frame(master)
+        self.class_frame.pack(pady=5)
 
-        self.good_button = Button(self.button_frame, text="BOM", command=self.move_to_good_data, **button_size)
-        self.good_button.pack(**button_options)
+        self.bad_button = Button(self.class_frame, text="RUIM", command=self.move_to_bad_data, bg="#B22222", fg="white", **button_size)
+        self.bad_button.pack(side="left", padx=5, pady=5)
 
-        self.quit_button = Button(self.button_frame, text="SAIR", command=master.quit, **button_size)
-        self.quit_button.pack(**button_options)
+        self.good_button = Button(self.class_frame, text="BOM", command=self.move_to_good_data, bg="#228B22", fg="white", **button_size)
+        self.good_button.pack(side="left", padx=5, pady=5)
+
+        self.quit_frame = Frame(master)
+        self.quit_frame.pack(pady=5)
+
+        self.quit_button = Button(self.quit_frame, text="SAIR", command=master.quit, bg="gray", fg="white", **button_size)
+        self.quit_button.pack(side="left", padx=5, pady=5)
 
         master.bind('<Left>', lambda event: self.prev_image())
         master.bind('<Right>', lambda event: self.next_image())
@@ -53,7 +59,7 @@ class ImageViewer:
         return overlay
 
     def show_image(self):
-        spacer = np.ones((self.rgb_image.shape[0], 20, 3), dtype=np.uint8) * 255
+        spacer = np.ones((self.rgb_image.shape[0], 10, 3), dtype=np.uint8) * 255
         combined_image = cv2.hconcat([self.rgb_image, spacer, self.overlay_image])
         combined_image = cv2.cvtColor(combined_image, cv2.COLOR_BGR2RGB)
         combined_image = Image.fromarray(combined_image)
@@ -109,7 +115,7 @@ def load_images(folder_path):
     return images
 
 if __name__ == "__main__":
-    folder_path = "data"
+    folder_path = "data/jose/bad_data"
     images = load_images(folder_path)
 
     root = Tk()
