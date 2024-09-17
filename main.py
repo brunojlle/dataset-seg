@@ -7,11 +7,12 @@ import shutil
 import numpy as np
 
 class ImageViewer:
-    def __init__(self, master, images, folder_path):
+    def __init__(self, master, images, image_folder, mask_folder):
         self.master = master
         self.images = images
         self.index = 0
-        self.folder_path = folder_path
+        self.image_folder = image_folder
+        self.mask_folder = mask_folder
 
         self.rgb_image, self.mask_image, self.base_name = self.images[self.index]
         self.overlay_image = self.create_overlay(self.rgb_image, self.mask_image)
@@ -81,11 +82,20 @@ class ImageViewer:
         self.show_image()
 
     def move_to_folder(self, folder_name):
-        os.makedirs(folder_name, exist_ok=True)
-        rgb_path = os.path.join(self.folder_path, self.base_name + 'rgb.tif')
-        mask_path = os.path.join(self.folder_path, self.base_name + 'mask.tif')
-        shutil.move(rgb_path, os.path.join(folder_name, self.base_name + 'rgb.tif'))
-        shutil.move(mask_path, os.path.join(folder_name, self.base_name + 'mask.tif'))
+        # Cria as pastas para imagens e máscaras
+        image_dest_folder = os.path.join(folder_name, 'images')
+        mask_dest_folder = os.path.join(folder_name, 'masks')
+
+        os.makedirs(image_dest_folder, exist_ok=True)
+        os.makedirs(mask_dest_folder, exist_ok=True)
+
+        # Move as imagens e máscaras para as pastas respectivas
+        rgb_path = os.path.join(self.image_folder, self.base_name + '.tif')
+        mask_path = os.path.join(self.mask_folder, self.base_name + '.tif')
+
+        shutil.move(rgb_path, os.path.join(image_dest_folder, self.base_name + '.tif'))
+        shutil.move(mask_path, os.path.join(mask_dest_folder, self.base_name + '.tif'))
+
         del self.images[self.index]
         if not self.images:
             self.master.quit()
@@ -94,30 +104,32 @@ class ImageViewer:
             self.update_image()
 
     def move_to_bad_data(self):
-        self.move_to_folder(os.path.join(self.folder_path, 'bad_data'))
+        self.move_to_folder(os.path.join(self.image_folder, '..', 'bad_data'))
 
     def move_to_good_data(self):
-        self.move_to_folder(os.path.join(self.folder_path, 'good_data'))
+        self.move_to_folder(os.path.join(self.image_folder, '..', 'good_data'))
 
-def load_images(folder_path):
-    rgb_images = glob.glob(os.path.join(folder_path, '*rgb.tif'))
-    mask_images = glob.glob(os.path.join(folder_path, '*mask.tif'))
+def load_images(image_folder, mask_folder):
+    image_files = glob.glob(os.path.join(image_folder, '*.tif'))
+    mask_files = glob.glob(os.path.join(mask_folder, '*.tif'))
 
     images = []
-    for rgb_path in rgb_images:
-        base_name = os.path.basename(rgb_path).replace('rgb.tif', '')
-        mask_path = os.path.join(folder_path, base_name + 'mask.tif')
-        if mask_path in mask_images:
-            rgb_image = cv2.imread(rgb_path)
+    for image_path in sorted(image_files):
+        base_name = os.path.basename(image_path).replace('.tif', '')
+        mask_path = os.path.join(mask_folder, base_name + '.tif')
+        if mask_path in mask_files:
+            rgb_image = cv2.imread(image_path)
             mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
             images.append((rgb_image, mask_image, base_name))
     
     return images
 
 if __name__ == "__main__":
-    folder_path = "data/jose/bad_data"
-    images = load_images(folder_path)
+    image_folder = "data/aug/images"
+    mask_folder = "data/aug/masks"
+    images = load_images(image_folder, mask_folder)
 
     root = Tk()
-    viewer = ImageViewer(root, images, folder_path)
+    root.title("Classificação de Terraços")
+    viewer = ImageViewer(root, images, image_folder, mask_folder)
     root.mainloop()
