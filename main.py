@@ -7,15 +7,17 @@ import shutil
 import numpy as np
 
 class ImageViewer:
-    def __init__(self, master, images, image_folder, mask_folder):
+    def __init__(self, master, image_folder, mask_folder, batch_size=100):
         self.master = master
-        self.images = images
-        self.index = 0
         self.image_folder = image_folder
         self.mask_folder = mask_folder
+        self.batch_size = batch_size
+        self.images = []
+        self.image_files = sorted(glob.glob(os.path.join(image_folder, '*.tif')) + glob.glob(os.path.join(image_folder, '*.tiff')))
+        self.mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.tif')) + glob.glob(os.path.join(mask_folder, '*.tiff')))
+        self.index = 0
 
-        self.rgb_image, self.mask_image, self.base_name = self.images[self.index]
-        self.overlay_image = self.create_overlay(self.rgb_image, self.mask_image)
+        self.load_next_batch()
 
         self.label = Label(master)
         self.label.pack()
@@ -54,31 +56,53 @@ class ImageViewer:
         master.bind('<Up>', lambda event: self.move_to_good_data())
         master.bind('<Down>', lambda event: self.move_to_bad_data())
 
+    def load_next_batch(self):
+        start = (self.index // self.batch_size) * self.batch_size
+        end = start + self.batch_size
+        self.images = []
+
+        for image_path in self.image_files[start:end]:
+            base_name = os.path.basename(image_path).rsplit('.', 1)[0]
+            for ext in ['.tif', '.tiff']:
+                mask_path = os.path.join(self.mask_folder, base_name + ext)
+                if mask_path in self.mask_files:
+                    rgb_image = cv2.imread(image_path)
+                    mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                    self.images.append((rgb_image, mask_image, base_name))
+                    break
+
+        if not self.images:
+            self.master.quit()
+
     def create_overlay(self, rgb_image, mask_image):
         mask_colored = cv2.cvtColor(mask_image, cv2.COLOR_GRAY2BGR)
         overlay = cv2.addWeighted(rgb_image, 0.8, mask_colored, 0.2, 0)
         return overlay
 
     def show_image(self):
-        spacer = np.ones((self.rgb_image.shape[0], 10, 3), dtype=np.uint8) * 255
-        combined_image = cv2.hconcat([self.rgb_image, spacer, self.overlay_image])
-        combined_image = cv2.cvtColor(combined_image, cv2.COLOR_BGR2RGB)
-        combined_image = Image.fromarray(combined_image)
-        imgtk = ImageTk.PhotoImage(image=combined_image)
-        self.label.imgtk = imgtk
-        self.label.configure(image=imgtk)
+        if self.images:
+            self.rgb_image, self.mask_image, self.base_name = self.images[self.index % self.batch_size]
+            self.overlay_image = self.create_overlay(self.rgb_image, self.mask_image)
+
+            spacer = np.ones((self.rgb_image.shape[0], 10, 3), dtype=np.uint8) * 255
+            combined_image = cv2.hconcat([self.rgb_image, spacer, self.overlay_image])
+            combined_image = cv2.cvtColor(combined_image, cv2.COLOR_BGR2RGB)
+            combined_image = Image.fromarray(combined_image)
+            imgtk = ImageTk.PhotoImage(image=combined_image)
+            self.label.imgtk = imgtk
+            self.label.configure(image=imgtk)
 
     def prev_image(self):
-        self.index = (self.index - 1) % len(self.images)
-        self.update_image()
+        if self.index > 0:
+            self.index -= 1
+            if self.index % self.batch_size == self.batch_size - 1:
+                self.load_next_batch()
+            self.show_image()
 
     def next_image(self):
-        self.index = (self.index + 1) % len(self.images)
-        self.update_image()
-
-    def update_image(self):
-        self.rgb_image, self.mask_image, self.base_name = self.images[self.index]
-        self.overlay_image = self.create_overlay(self.rgb_image, self.mask_image)
+        self.index += 1
+        if self.index % self.batch_size == 0:
+            self.load_next_batch()
         self.show_image()
 
     def move_to_folder(self, folder_name):
@@ -97,12 +121,12 @@ class ImageViewer:
                 shutil.move(mask_path, os.path.join(mask_dest_folder, self.base_name + ext))
                 break
 
-        del self.images[self.index]
+        self.images.pop(self.index % self.batch_size)
         if not self.images:
-            self.master.quit()
+            self.load_next_batch()
         else:
-            self.index = self.index % len(self.images)
-            self.update_image()
+            self.index = self.index % self.batch_size
+            self.show_image()
 
     def move_to_bad_data(self):
         self.move_to_folder(os.path.join(self.image_folder, '..', 'bad_data'))
@@ -110,29 +134,11 @@ class ImageViewer:
     def move_to_good_data(self):
         self.move_to_folder(os.path.join(self.image_folder, '..', 'good_data'))
 
-def load_images(image_folder, mask_folder):
-    image_files = glob.glob(os.path.join(image_folder, '*.tif')) + glob.glob(os.path.join(image_folder, '*.tiff'))
-    mask_files = glob.glob(os.path.join(mask_folder, '*.tif')) + glob.glob(os.path.join(mask_folder, '*.tiff'))
-
-    images = []
-    for image_path in sorted(image_files):
-        base_name = os.path.basename(image_path).rsplit('.', 1)[0]
-        for ext in ['.tif', '.tiff']:
-            mask_path = os.path.join(mask_folder, base_name + ext)
-            if mask_path in mask_files:
-                rgb_image = cv2.imread(image_path)
-                mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-                images.append((rgb_image, mask_image, base_name))
-                break
-
-    return images
-
 if __name__ == "__main__":
     image_folder = "data/images"
     mask_folder = "data/masks"
-    images = load_images(image_folder, mask_folder)
 
     root = Tk()
     root.title("Classificação de Terraços")
-    viewer = ImageViewer(root, images, image_folder, mask_folder)
+    viewer = ImageViewer(root, image_folder, mask_folder)
     root.mainloop()
