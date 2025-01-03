@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 class ImageViewer:
-    def __init__(self, master, image_folder, mask_folder, batch_size=100, delay=0.5):
+    def __init__(self, master, image_folder, mask_folder, batch_size=100, delay=1):
         self.master = master
         self.image_folder = image_folder
         self.mask_folder = mask_folder
