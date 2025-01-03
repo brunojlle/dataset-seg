@@ -5,9 +5,10 @@ from tkinter import Tk, Label, Button, Frame
 from PIL import Image, ImageTk
 import shutil
 import numpy as np
+import time
 
 class ImageViewer:
-    def __init__(self, master, image_folder, mask_folder, batch_size=100):
+    def __init__(self, master, image_folder, mask_folder, batch_size=100, delay=0.5):
         self.master = master
         self.image_folder = image_folder
         self.mask_folder = mask_folder
@@ -16,6 +17,8 @@ class ImageViewer:
         self.image_files = sorted(glob.glob(os.path.join(image_folder, '*.tif')) + glob.glob(os.path.join(image_folder, '*.tiff')))
         self.mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.tif')) + glob.glob(os.path.join(mask_folder, '*.tiff')))
         self.index = 0
+        self.delay = delay  # Delay para bloquear os inputs
+        self.last_action_time = 0  # Tempo da última ação
 
         self.load_next_batch()
 
@@ -51,10 +54,17 @@ class ImageViewer:
         self.quit_button = Button(self.quit_frame, text="SAIR", command=master.quit, bg="gray", fg="white", **button_size)
         self.quit_button.pack(side="left", padx=5, pady=5)
 
-        master.bind('<Left>', lambda event: self.prev_image())
-        master.bind('<Right>', lambda event: self.next_image())
-        master.bind('<Up>', lambda event: self.move_to_good_data())
-        master.bind('<Down>', lambda event: self.move_to_bad_data())
+        master.bind('<Left>', lambda event: self.handle_key_event(self.prev_image))
+        master.bind('<Right>', lambda event: self.handle_key_event(self.next_image))
+        master.bind('<Up>', lambda event: self.handle_key_event(self.move_to_good_data))
+        master.bind('<Down>', lambda event: self.handle_key_event(self.move_to_bad_data))
+
+    def handle_key_event(self, action):
+        # Verificar se o delay passou
+        current_time = time.time()
+        if current_time - self.last_action_time >= self.delay:
+            action()
+            self.last_action_time = current_time
 
     def load_next_batch(self):
         start = (self.index // self.batch_size) * self.batch_size
