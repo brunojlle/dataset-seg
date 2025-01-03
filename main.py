@@ -82,19 +82,20 @@ class ImageViewer:
         self.show_image()
 
     def move_to_folder(self, folder_name):
-        # Cria as pastas para imagens e máscaras
         image_dest_folder = os.path.join(folder_name, 'images')
         mask_dest_folder = os.path.join(folder_name, 'masks')
 
         os.makedirs(image_dest_folder, exist_ok=True)
         os.makedirs(mask_dest_folder, exist_ok=True)
 
-        # Move as imagens e máscaras para as pastas respectivas
-        rgb_path = os.path.join(self.image_folder, self.base_name + '.tif')
-        mask_path = os.path.join(self.mask_folder, self.base_name + '.tif')
+        for ext in ['.tif', '.tiff']:
+            rgb_path = os.path.join(self.image_folder, self.base_name + ext)
+            mask_path = os.path.join(self.mask_folder, self.base_name + ext)
 
-        shutil.move(rgb_path, os.path.join(image_dest_folder, self.base_name + '.tif'))
-        shutil.move(mask_path, os.path.join(mask_dest_folder, self.base_name + '.tif'))
+            if os.path.exists(rgb_path) and os.path.exists(mask_path):
+                shutil.move(rgb_path, os.path.join(image_dest_folder, self.base_name + ext))
+                shutil.move(mask_path, os.path.join(mask_dest_folder, self.base_name + ext))
+                break
 
         del self.images[self.index]
         if not self.images:
@@ -110,23 +111,25 @@ class ImageViewer:
         self.move_to_folder(os.path.join(self.image_folder, '..', 'good_data'))
 
 def load_images(image_folder, mask_folder):
-    image_files = glob.glob(os.path.join(image_folder, '*.tif'))
-    mask_files = glob.glob(os.path.join(mask_folder, '*.tif'))
+    image_files = glob.glob(os.path.join(image_folder, '*.tif')) + glob.glob(os.path.join(image_folder, '*.tiff'))
+    mask_files = glob.glob(os.path.join(mask_folder, '*.tif')) + glob.glob(os.path.join(mask_folder, '*.tiff'))
 
     images = []
     for image_path in sorted(image_files):
-        base_name = os.path.basename(image_path).replace('.tif', '')
-        mask_path = os.path.join(mask_folder, base_name + '.tif')
-        if mask_path in mask_files:
-            rgb_image = cv2.imread(image_path)
-            mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-            images.append((rgb_image, mask_image, base_name))
-    
+        base_name = os.path.basename(image_path).rsplit('.', 1)[0]
+        for ext in ['.tif', '.tiff']:
+            mask_path = os.path.join(mask_folder, base_name + ext)
+            if mask_path in mask_files:
+                rgb_image = cv2.imread(image_path)
+                mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                images.append((rgb_image, mask_image, base_name))
+                break
+
     return images
 
 if __name__ == "__main__":
-    image_folder = "data/aug/images"
-    mask_folder = "data/aug/masks"
+    image_folder = "data/images"
+    mask_folder = "data/masks"
     images = load_images(image_folder, mask_folder)
 
     root = Tk()
